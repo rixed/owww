@@ -1,0 +1,73 @@
+# vim:syntax=make
+OCAMLC     = OCAMLPATH=$(top_srcdir)/.. ocamlfind ocamlc -thread -rectypes
+OCAMLOPT   = OCAMLPATH=$(top_srcdir)/.. ocamlfind ocamlopt -thread -rectypes
+OCAMLLEX   = ocamllex
+OCAMLYACC  = ocamlyacc
+OCAMLDEP   = OCAMLPATH=$(top_srcdir)/.. ocamlfind ocamldep
+OCAMLDOC   = OCAMLPATH=$(top_srcdir)/.. ocamlfind ocamldoc -html -colorize-code -thread -all-params
+OCAMLMKTOP = OCAMLPATH=$(top_srcdir)/.. ocamlfind ocamlmktop -thread -g -rectypes
+override OCAMLOPTFLAGS += $(INCS) -w Ael -g -annot -inline 50
+override OCAMLFLAGS    += $(INCS) -w Ael -g -annot
+
+.PHONY: opt clean clean-spec install uninstall reinstall doc clear
+
+ifdef PKG_NAME
+OBJECTS  = $(SOURCES:.ml=.cmo)
+XOBJECTS = $(OBJECTS:.cmo=.cmx)
+ARCHIVE  = $(PKG_NAME).cma
+XARCHIVE = $(ARCHIVE:.cma=.cmxa)
+$(ARCHIVE): $(OBJECTS) $(CLIB)
+	$(OCAMLC)   -a -o $@ $(SYNTAX) -package "$(REQUIRES)" -linkpkg $(OCAMLFLAGS) $(OBJECTS)
+$(XARCHIVE): $(XOBJECTS) $(CLIB)
+	$(OCAMLOPT) -a -o $@ $(SYNTAX) -package "$(REQUIRES)" $(OCAMLOPTFLAGS) $(XOBJECTS)
+install: $(ARCHIVE) $(XARCHIVE)
+	if test -f "$(XARCHIVE)" ; then extra="$(XARCHIVE) "`basename "$(XARCHIVE)" .cmxa`.a ; fi ; \
+	ocamlfind install "$(PKG_NAME)" *.cmi "$(ARCHIVE)" META $$extra
+uninstall:
+	ocamlfind remove $(PKG_NAME)
+reinstall: uninstall install
+endif
+
+# Common rules
+.SUFFIXES: .mll .mly .ml .mli .cmo .cmi .cmx .opt .byte
+
+.cmo.byte:
+	$(OCAMLC)   -o $@ $(SYNTAX) -package "$(REQUIRES)" $(ARCHIVE)  $(EXTRALIBS) -linkpkg $(OCAMLFLAGS) $^
+
+.cmx.opt:
+	$(OCAMLOPT) -o $@ $(SYNTAX) -package "$(REQUIRES)" $(XARCHIVE) $(EXTRALIBS:.cma=.cmxa) -linkpkg $(OCAMLOPTFLAGS) $^
+
+.ml.cmo:
+	$(OCAMLC) $(SYNTAX) -package "$(REQUIRES)" $(OCAMLFLAGS) -c $<
+
+.mli.cmi:
+	$(OCAMLC) $(SYNTAX) -package "$(REQUIRES)" $(OCAMLFLAGS) -c $<
+
+.ml.cmx:
+	$(OCAMLOPT) $(SYNTAX) -package "$(REQUIRES)" $(OCAMLOPTFLAGS) -c $<
+
+.mll.ml:
+	$(OCAMLLEX) $<
+
+.mly.ml:
+	$(OCAMLYACC) $<
+
+.mly.mli:
+	$(OCAMLYACC) $<
+
+# Clean up
+clean: clean-spec
+	rm -f *.cm[ioxa] *.cmxa *.a *.s *.o *.byte *.opt .depend *.annot
+
+# Dependencies
+.depend: $(wildcard *.ml) $(wildcard *.mli) $(wildcard *.mll) $(wildcard *.mly)
+	$(OCAMLDEP) $(SYNTAX) -package "$(REQUIRES)" -I .. $^ > $@
+
+doc: $(SOURCES)
+	mkdir -p $@
+	$(OCAMLDOC) $(SYNTAX) -d doc $^
+
+clear: $(SOURCES)
+	sed -i -e 's/[ 	]\+$$//' $^
+
+-include .depend

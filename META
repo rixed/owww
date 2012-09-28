@@ -1,0 +1,5 @@
+description = "Dead simple WWW lib"
+version = "1"
+requires = "batteries cgi"
+archive(byte) = "owww.cma"
+archive(native) = "owww.cmxa"

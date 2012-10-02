@@ -86,8 +86,13 @@ let print_ctag oc name =
     print_string oc name ;
     print_string oc ">\n"
 
+let is_empty = function
+    | "base" | "meta" | "link" | "hr" | "br" | "param" | "img"
+    | "area" | "input" | "col" | "basefont" | "isindex" | "frame" -> true
+    | _ -> false
+
 let rec print_tag oc = function
-    | name, attrs, [] ->
+    | name, attrs, [] when is_empty name ->
         print_octag oc name attrs
     | name, attrs, content ->
         print_otag oc name attrs ;

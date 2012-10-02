@@ -32,7 +32,7 @@ let run d =
               with e -> View.err (View.backtrace e) in
     Cgi.header ~content_type:!content_type ~cookies:!set_cookies () ;
     Html.print stdout doc ;
-    Printf.printf "\n<!-- OCAMLRUNPARAM: %s\nURL: %s\nPATH_INFO: %a\nARGS: %a\n Debug:\n %a ->\n"
+    Printf.printf "\n<!-- OCAMLRUNPARAM: %s\nURL: %s\nPATH_INFO: %a\nARGS: %a\n Debug:\n %a -->\n"
         (try Sys.getenv "OCAMLRUNPARAM" with Not_found -> "unset")
         (Cgi.this_url ())
         (List.print String.print) Cgi.path_info

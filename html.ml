@@ -12,7 +12,7 @@ open Batteries
 
 type attr = (string * string)
 type tag = (string * attr list * html)
-and html_chunk = CData of string | Tag of tag
+and html_chunk = Raw of string | CData of string | Tag of tag
 and html = html_chunk list
 
 (* {1 Helpers to build simple docs} *)
@@ -20,6 +20,7 @@ and html = html_chunk list
 (* {2 Main} *)
 let tag name ?(attrs=[]) content = Tag (name, attrs, content)
 let cdata txt = CData txt
+let raw txt = Raw txt
 let p = tag "p"
 let h1 ?attrs txt = tag "h1" ?attrs [ cdata txt ]
 let h2 ?attrs txt = tag "h2" ?attrs [ cdata txt ]
@@ -101,6 +102,7 @@ let rec print_tag oc = function
 
 and print oc = function
     | CData s -> print_cdata oc s
+    | Raw s -> print_string oc s
     | Tag t -> print_tag oc t
 
 let print_xml_head oc =

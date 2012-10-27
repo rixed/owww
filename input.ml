@@ -3,13 +3,14 @@ open Html
 
 (** {1 Simple datatypes that can be shared with the user} *)
 
-(** The types and utilities your are likely to want to open *)
+(** The types and utilities you are likely to want to open *)
 module Ops = struct
 
     (** The type values from user, that can be set or erroneous
      * (in which case we keep both an error message and the original input
      * so the user is given a chance to fix it) *)
-    type 'a user_value = Error of (string * string) | Value of 'a
+    type 'a user_value = Error of (string * string) (* when an invalid value was tried (err, value) *)
+                       | Value of 'a (* valid value *)
 
     (** The type of an optional user input *)
     module type TYPE =
@@ -57,8 +58,8 @@ let missing_field = Error ("this field is mandatory", "")
 
 module type LIMIT =
 sig
-    val min : int
-    val max : int
+    val min : int option
+    val max : int option
 end
 
 (** Implementation for an optional, bounded range integer *)
@@ -66,27 +67,32 @@ module OptInteger (Limit : LIMIT) :
     TYPE with type t = int option =
 struct
     type t = int option
+    (* FIXME: add limits in type name *)
     let name = "optional integer"
     let to_html v = [ cdata (html_of_user_value (function None -> "<i>unset</i>"
                                                         | Some i -> string_of_int i) v) ]
     let edit name v =
-        let max_size = float_of_int Limit.max |>
-                       log10 |> ceil |>
-                       int_of_float in
-        [ input [ "maxlength", string_of_int max_size ;
-                  "size", string_of_int max_size ;
-                  "name", name ;
-                  "value", input_of_user_value (function None -> ""
-                                                       | Some i -> string_of_int i) v ] ] @
+        let size_cstr = Option.map_default (fun x ->
+                          let s = float_of_int x |>
+                                  log10 |> ceil |>
+                                  int_of_float in
+                          [ "maxlength", string_of_int s ; "size", string_of_int s ])
+                          [] Limit.max in
+        [ input (("name", name) ::
+                 ("value", input_of_user_value (function None -> ""
+                                                      | Some i -> string_of_int i) v) ::
+                 size_cstr) ] @
         err_msg_of v
     let from_args name args =
         match Hashtbl.find_option args name with
-        | None -> Value None
+        | None | Some "" -> Value None
         | Some s -> try let n = int_of_string s in
-                        if n < Limit.min then (
-                            Error (Printf.sprintf "must not be less than %d" Limit.min, s)
-                        ) else if n > Limit.max then (
-                            Error (Printf.sprintf "must not be greater than %d" Limit.max, s)
+                        let min = Option.default n Limit.min
+                        and max = Option.default n Limit.max in
+                        if n < min then (
+                            Error (Printf.sprintf "must not be less than %d" min, s)
+                        ) else if n > max then (
+                            Error (Printf.sprintf "must not be greater than %d" max, s)
                         ) else Value (Some n)
                     with Failure _ ->
                         Error ("not an integer", s)
@@ -111,25 +117,81 @@ struct
         | Value (Some n) -> Value n
 end
 
+module type LIMIT_FLOAT =
+sig
+    val min : float option
+    val max : float option
+end
+
+module OptFloat (Limit : LIMIT_FLOAT) :
+    TYPE with type t = float option =
+struct
+    type t = float option
+    let name = "optional float"
+    let to_html v = [ cdata (html_of_user_value (function None -> "<i>unset</i>"
+                                                        | Some i -> string_of_float i) v) ]
+    let edit name v =
+        [ input [ "name", name ;
+                  "value", input_of_user_value (function None -> ""
+                                                       | Some i -> string_of_float i) v ] ] @
+        err_msg_of v
+    let from_args name args =
+        match Hashtbl.find_option args name with
+        | None | Some "" -> Value None
+        | Some s -> try let n = float_of_string s in
+                        let min = Option.default n Limit.min
+                        and max = Option.default n Limit.max in
+                        if n < min then (
+                            Error (Printf.sprintf "must not be less than %f" min, s)
+                        ) else if n > max then (
+                            Error (Printf.sprintf "must not be greater than %f" max, s)
+                        ) else Value (Some n)
+                    with Failure _ ->
+                        Error ("not a real number", s)
+end
+
+(* TODO: Float *)
+
+module OptString (Limit : LIMIT) :
+    TYPE with type t = string option =
+struct
+    type t = string option
+    let name = "optional string"
+    let to_html v = [ cdata (html_of_user_value (Option.default "<i>unset</i>") v) ]
+    let edit name v =
+        [ input [ "name", name ;
+                  "size", string_of_int (min 20 (Option.default 20 Limit.max)) ;
+                  "value", input_of_user_value (Option.default "") v ] ] @
+        err_msg_of v
+    let from_args name args =
+        match Hashtbl.find_option args name with
+            | None | Some "" -> Value None
+            | Some s ->
+                let len = String.length s in
+                let min = Option.default len Limit.min
+                and max = Option.default len Limit.max in
+                if len < min then Error (Printf.sprintf "Input must be at least %d chars long" min, s)
+                else if len > max then Error (Printf.sprintf "Input must not exceed %d chars" max, s)
+                else Value (Some s)
+end
+
+module StdString = String
 module String (Limit : LIMIT) :
     TYPE with type t = string =
 struct
+    module O = OptString (Limit)
     type t = string
     let name = "string"
-    let to_html v = [ cdata (html_of_user_value identity v) ]
-    let edit name v =
-        [ input [ "name", name ;
-                  "size", string_of_int (min 20 Limit.max) ;
-                  "value", input_of_user_value identity v ] ] @
-        err_msg_of v
+    let make_opt = function
+        | Error _ as x -> x
+        | Value n -> Value (Some n)
+    let to_html v = O.to_html (make_opt v)
+    let edit name v = O.edit name (make_opt v)
     let from_args name args =
-        let s = match Hashtbl.find_option args name with
-                | None -> ""
-                | Some s -> s in
-        let len = String.length s in
-        if len < Limit.min then Error (Printf.sprintf "Input must be at least %d chars long" Limit.min, s)
-        else if len > Limit.max then Error (Printf.sprintf "Input must not exceed %d chars" Limit.max, s)
-        else Value s
+        match O.from_args name args with
+        | Error _ as e -> e
+        | Value None -> missing_field
+        | Value (Some n) -> Value n
 end
 
 module Password (Limit : LIMIT) :
@@ -177,26 +239,62 @@ end
 
 (** {2 Records} *)
 
-(** Build a field from a type + field name. *)
-module FieldOf (F : sig module Type : TYPE val name : string end) :
+(** We build record fields from a type + user name + uniq name + persistance flag. *)
+module type FIELD_SPEC = sig
+    val display_name : string
+    val uniq_name    : string (* Used in the form name _and_ in the set of persistant values *)
+    val persistant   : bool   (* If this uniq_name must be made persistant *)
+    module Type : TYPE
+end
+
+module FieldOf (F : FIELD_SPEC) :
+    (* A field has the same type than a type, although it's not one of course *)
     TYPE with type t = F.Type.t =
 struct
-    include F.Type
-    let name = F.name ^ ":" ^ F.Type.name
-    let to_html v =
-        [ tr [ th [cdata (F.name^":")] ;
-               td (F.Type.to_html v) ] ]
-    let edit name v =
-        [ tr [ th [cdata (F.name^":")] ;
-               td (F.Type.edit (name^"/"^F.name) v) ] ]
-    let from_args name =
-        F.Type.from_args (name^"/"^F.name)
+    let name = F.uniq_name
+    type t = F.Type.t
+
+    let to_html uv =
+        [ tr [ th [cdata (F.display_name^":")] ;
+               td (F.Type.to_html uv) ] ]
+    let edit form_name uv =
+        [ tr [ th [cdata (F.display_name^":")] ;
+               td (F.Type.edit (form_name^"."^F.uniq_name) uv) ] ]
+    let from_args form_name args =
+        let id = form_name^"."^F.uniq_name in
+        if not F.persistant then (
+            F.Type.from_args id args
+        ) else (
+            (* Was a value suplied? We must look ourself since F.Type.from_args could trigger
+             * an error if no value was found *)
+            match Hashtbl.find_option args id with
+            | Some v when StdString.length v > 0 ->
+                (* We had a value! Maybe we should save it? *)
+                (match F.Type.from_args id args with
+                | Value v ->
+                    Dispatch.debug_msg (Printf.sprintf "Saving value for persistant %s" name) ;
+                    (* save a marshaled version under the name 'name' *)
+                    Dispatch.add_cookie name (Marshal.to_string v [] |> Base64.str_encode) ;
+                    Value v
+                | x ->
+                    Dispatch.debug_msg (Printf.sprintf "Suplied value unusable for persistant %s" name) ;
+                    x)
+            | _ ->
+                Dispatch.debug_msg (Printf.sprintf "no value supplied for persistant %s" name) ;
+                (* no value suplied -> provide the one from cookies *)
+                (try let s = List.assoc name !Dispatch.current_cookies in
+                    let s = Base64.str_decode s in
+                    let v : F.Type.t = Marshal.from_string s 0 in
+                    Value v
+                with Not_found ->
+                    F.Type.from_args id args)
+        )
 end
 
 (** We can cons types together to form tuples, or fields to form records.
  * Notice that the corresponding internal type is not merely the product of both
  * types, since we want to be able to have some unset fields in an overall
- * record that's always valid. *)
+ * record that's valid nonetheless. *)
 module ConsOf (T1 : TYPE) (T2 : AGGR_TYPE) :
     AGGR_TYPE with type t = T1.t user_value * T2.t =
 struct

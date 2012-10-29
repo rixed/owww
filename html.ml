@@ -33,7 +33,7 @@ let form action ?attrs content =
                          "value", action ] in
     tag "form" ?attrs (hidden :: content)
 let title ?attrs txt = tag "title" ?attrs [ cdata txt ]
-let link_css url = tag "link" ~attrs:["rel","stylesheet"; "type","test/css"; "href",url] []
+let link_css url = tag "link" ~attrs:["rel","stylesheet"; "type","text/css"; "href",url] []
 let default_html_attrs = [ "xmlns", "http://www.w3.org/1999/xhtml" ; "xml:lang", "en" ]
 let html ?(attrs=default_html_attrs) head body =
     tag "html" ~attrs [ tag "head" head ; tag "body" body ]

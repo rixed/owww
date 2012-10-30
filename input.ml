@@ -297,7 +297,7 @@ struct
             (* Was a value suplied? We must look ourself since F.Type.from_args could trigger
              * an error if no value was found *)
             match Hashtbl.find_option args id with
-            | Some v when StdString.length v > 0 ->
+            | Some _ ->
                 (* We had a value! Maybe we should save it? *)
                 (match F.Type.from_args id args with
                 | Value v ->

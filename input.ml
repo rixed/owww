@@ -287,8 +287,10 @@ struct
                     let v : F.Type.t = Marshal.from_string s 0 in
                     Value v
                 with Not_found ->
-                    F.Type.from_args id args)
-        )
+                        F.Type.from_args id args
+                   | Base64.Invalid_char ->
+                        Printf.fprintf stderr "Invalid char while decoding cookie value of %s\n" name ;
+                        F.Type.from_args id args))
 end
 
 (** We can cons types together to form tuples, or fields to form records.

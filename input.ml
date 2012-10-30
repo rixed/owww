@@ -212,29 +212,58 @@ sig
     val name : string val options : string array
 end
 
+let select_box name ?(any=false) options selected =
+    let option_of_value i n =
+        tag "option"
+            ~attrs:(
+                ("value", string_of_int i)::
+                (if selected = Some i then [ "selected", "selected" ] else [])
+            )
+            [ cdata n ] in
+    let opts = Array.mapi option_of_value options |>
+               Array.to_list in
+    let opts = if any then (
+                   tag "option" ~attrs:["value",""] [ cdata "any" ] :: opts
+               ) else opts in
+    [ tag "select"
+          ~attrs:[ "name", name ]
+          opts ]
+
+module OptEnum (E : ENUM_OPTIONS) :
+    TYPE with type t = int option =
+struct
+    type t = int option
+    let name = "optional enum of "^E.name
+    let to_html v = [ cdata (html_of_user_value (function None -> ""
+                                                        | Some i -> E.options.(i)) v) ]
+    let edit name v =
+        let selected = match v with Value x -> x | _ -> None in
+        select_box name ~any:true E.options selected @ err_msg_of v
+    let from_args name args =
+        match Hashtbl.find_option args name with
+        | None | Some "" -> Value None
+        | Some s -> let i = int_of_string s in
+                    if i >= 0 && i < Array.length E.options then
+                        Value (Some i)
+                    else
+                        Error ("not a valid choice", s)
+end
+
 module Enum (E : ENUM_OPTIONS) :
     TYPE with type t = int =
 struct
+    module O = OptEnum (E)
     type t = int
     let name = "enum of "^E.name
     let to_html v = [ cdata (html_of_user_value (Array.get E.options) v) ]
     let edit name v =
-        let option_of_value i =
-            tag "option"
-                ~attrs:(if v = Value i then [ "selected", "selected" ] else [])
-                [ cdata E.options.(i) ] in
-        let options = Array.mapi (fun i _n -> option_of_value i)
-                                 E.options |>
-                      Array.to_list in
-        [ tag "select"
-              ~attrs:[ "name", name ]
-              options ] @
-        err_msg_of v
+        let selected = match v with Value x -> Some x | _ -> None in
+        select_box name E.options selected @ err_msg_of v
     let from_args name args =
-        match Hashtbl.find_option args name with
-        | None -> missing_field
-        | Some s -> try Value (Array.findi ((=) s) E.options)
-                    with Not_found -> Error ("not a valid choice", s)
+        match O.from_args name args with
+        | Error _ as e -> e
+        | Value None -> missing_field
+        | Value (Some n) -> Value n
 end
 
 (** {2 Records} *)

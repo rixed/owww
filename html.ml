@@ -42,6 +42,8 @@ let html ?(attrs=default_html_attrs) head body =
 let td = tag "td"
 let th = tag "th"
 let tr = tag "tr"
+let thead = tag "thead"
+let tbody = tag "tbody"
 let table = tag "table"
 
 (* {1 Printers} *)

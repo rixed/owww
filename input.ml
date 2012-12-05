@@ -12,6 +12,8 @@ module Ops = struct
     type 'a user_value = Error of (string * string) (* when an invalid value was tried (err, value) *)
                        | Value of 'a (* valid value *)
 
+    let missing_field = Error ("this field is mandatory", "")
+
     (** The type of an optional user input *)
     module type TYPE =
     sig
@@ -54,12 +56,15 @@ end
 
 open Ops
 
-let missing_field = Error ("this field is mandatory", "")
-
 module type LIMIT =
 sig
     val min : int option
     val max : int option
+end
+
+module NoLimit : LIMIT = struct
+    let min = None
+    let max = None
 end
 
 (** Implementation for an optional, bounded range integer *)
@@ -123,6 +128,11 @@ sig
     val max : float option
 end
 
+module NoLimit_float : LIMIT_FLOAT = struct
+    let min = None
+    let max = None
+end
+
 module OptFloat (Limit : LIMIT_FLOAT) :
     TYPE with type t = float option =
 struct
@@ -151,6 +161,34 @@ struct
 end
 
 (* TODO: Float *)
+
+module OptBoolean : TYPE with type t = bool option =
+struct
+    type t = bool option
+    let name = "optional boolean"
+    let to_html v = [ cdata (html_of_user_value (function None -> "<i>unset</i>"
+                                                        | Some b -> string_of_bool b) v) ]
+    let edit name v =
+        [
+            input ([ "type", "radio" ;
+                   "name", name ;
+                   "value", "true" ] @
+                 (if v = Value (Some true) then ["checked","checked"] else [])) ;
+            raw "True" ;
+            input ([ "type", "radio" ;
+                   "name", name ;
+                   "value", "false" ] @
+                 (if v = Value (Some false) then ["checked","checked"] else [])) ;
+            raw "False"
+        ] @
+        err_msg_of v
+    let from_args name args =
+        match Hashtbl.find_option args name with
+        | Some "true" -> Value (Some true)
+        | Some "false" -> Value (Some false)
+        | _ -> Value None
+end
+
 
 module OptString (Limit : LIMIT) :
     TYPE with type t = string option =
@@ -276,6 +314,8 @@ module type FIELD_SPEC = sig
     module Type : TYPE
 end
 
+let encode_cookie v = Marshal.to_string v [] |> Base64.str_encode
+
 module FieldOf (F : FIELD_SPEC) :
     (* A field has the same type than a type, although it's not one of course *)
     TYPE with type t = F.Type.t =
@@ -303,19 +343,21 @@ struct
                 | Value v ->
                     Dispatch.debug_msg (Printf.sprintf "Saving value for persistant %s" name) ;
                     (* save a marshaled version under the name 'name' *)
-                    Dispatch.add_cookie name (Marshal.to_string v [] |> Base64.str_encode) ;
+                    Dispatch.add_cookie name (encode_cookie v) ;
                     Value v
                 | x ->
                     Dispatch.debug_msg (Printf.sprintf "Suplied value unusable for persistant %s" name) ;
                     x)
             | _ ->
-                Dispatch.debug_msg (Printf.sprintf "no value supplied for persistant %s" name) ;
+                Dispatch.debug_msg (Printf.sprintf "No value supplied for persistant %s" name) ;
                 (* no value suplied -> provide the one from cookies *)
                 (try let s = List.assoc name !Dispatch.current_cookies in
                     let s = Base64.str_decode s in
                     let v : F.Type.t = Marshal.from_string s 0 in
+                    Dispatch.debug_msg (Printf.sprintf "Some value found in cookies for %s" name) ;
                     Value v
                 with Not_found ->
+                        Dispatch.debug_msg (Printf.sprintf "No value found in cookies for %s" name) ;
                         F.Type.from_args id args
                    | Base64.Invalid_char ->
                         Printf.fprintf stderr "Invalid char while decoding cookie value of %s\n" name ;

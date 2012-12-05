@@ -12,10 +12,10 @@ let debug_msg s =
 
 let content_type = ref "text/html"
 let current_cookies = ref []
-let set_cookies = ref []
+let set_cookies = Hashtbl.create 11
 let add_cookie n v =
     debug_msg (Printf.sprintf "Add cookie %s -> %s" n v) ;
-    set_cookies := (n,v) :: !set_cookies
+    Hashtbl.replace set_cookies n v
 
 let run d =
     let args =
@@ -33,7 +33,8 @@ let run d =
     let doc = runner args (*try runner args
               with e ->
                 View.err (View.backtrace e) *) in
-    Cgi.header ~content_type:!content_type ~cookies:!set_cookies () ;
+    let cookies = Hashtbl.fold (fun k v l -> (k,v)::l) set_cookies [] in
+    Cgi.header ~content_type:!content_type ~cookies () ;
     Html.print stdout doc ;
     if Hashtbl.mem args "debug" then
         Printf.printf "\n<!-- OCAMLRUNPARAM: %s\nURL: %s\nPATH_INFO: %a\nARGS: %a\n Debug:\n %a -->\n"
@@ -41,5 +42,5 @@ let run d =
             (Cgi.this_url ())
             (List.print String.print) Cgi.path_info
             (Hashtbl.print String.print String.print) args
-            (List.print String.print) !debug_msgs
+            (List.print ~sep:"<br/>\n" String.print) (List.rev !debug_msgs)
 

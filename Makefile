@@ -8,8 +8,7 @@ SOURCES = \
 	dispatch.ml \
 	input.ml \
 
-REQUIRES = batteries batteries.pa_string.syntax cgi
-#SYNTAX=-syntax camlp4o
+REQUIRES = batteries cgi
 
 all: owww.cma owww.cmxa
 

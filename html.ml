@@ -181,11 +181,12 @@ let text ?(attrs=[]) ?id ?x ?y ?dx ?dy ?style ?rotate ?text_length ?length_adjus
                             "stroke-width", Option.map string_of_float stroke_width ] in
     tag "text" ~attrs ?id [ raw txt ]
 
+(* Takes a list of (string * font_size) *)
 let texts ?attrs ?id ?dx ?dy ?style ?rotate ?text_length ?length_adjust ?font_family ?fill ?stroke ?stroke_width ?stroke_opacity ?fill_opacity x y txts =
     let rec aux res y = function
     | [] -> res
     | (str, sz)::txts' ->
-        aux ((text ?attrs ?id ~x:x ~y:y ~font_size:sz
+        aux ((text ?attrs ?id ~x ~y ~font_size:sz
                    ?dx ?dy ?style ?rotate ?text_length ?length_adjust
                    ?font_family ?fill ?stroke ?stroke_width ?stroke_opacity ?fill_opacity
                    str)::res)

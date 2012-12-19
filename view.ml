@@ -11,4 +11,4 @@ let err content =
 let backtrace e =
     [ div ~attrs:["class","backtrace"]
         [ h1 ("Exception: " ^ Printexc.to_string e) ;
-          p [ cdata (Printexc.get_backtrace ()) ] ] ]
+          pre [ cdata (Printexc.get_backtrace ()) ] ] ]

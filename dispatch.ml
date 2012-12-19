@@ -30,9 +30,9 @@ let run d =
         with Not_found -> ["main"] in
     let runner = try d action
                  with _ -> Ctrl.Invalid.run in
-    let doc = runner args (*try runner args
+    let doc = try runner args
               with e ->
-                View.err (View.backtrace e) *) in
+                  View.err (View.backtrace e) in
     let cookies = Hashtbl.fold (fun k v l -> (k,v)::l) set_cookies [] in
     Cgi.header ~content_type:!content_type ~cookies () ;
     Html.print stdout doc ;

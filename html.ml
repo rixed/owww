@@ -42,6 +42,7 @@ let html ?(attrs=default_html_attrs) head body =
     tag "html" ~attrs [ tag "head" head ; tag "body" body ]
 let script str = tag "script" ~attrs:["type","text/javascript"] [ raw str ]
 let span = tag "span"
+let pre = tag "pre"
 
 (** {2 Tables} *)
 let td = tag "td"

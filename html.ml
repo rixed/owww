@@ -68,7 +68,7 @@ let print_cdata oc s =
 let print_attr oc (name, value) =
     print_string oc name ;
     print_string oc "=\"" ;
-    print_string oc value ;
+    print_string oc (String.nreplace value "\"" "&quot;") ;
     print_char oc '"'
 
 let rec print_attrs oc = function

@@ -32,10 +32,10 @@ let run d =
                  with _ -> Ctrl.Invalid.run in
     let doc = try runner args
               with e ->
-                  View.err (View.backtrace e) in
+                  [ View.err (View.backtrace e) ] in
     let cookies = Hashtbl.fold (fun k v l -> (k,v)::l) set_cookies [] in
     Cgi.header ~content_type:!content_type ~cookies () ;
-    Html.print stdout doc ;
+    List.iter (Html.print stdout) doc ;
     if Hashtbl.mem args "debug" then
         Printf.printf "\n<!-- OCAMLRUNPARAM: %s\nURL: %s\nPATH_INFO: %a\nARGS: %a\n Debug:\n %a -->\n"
             (try Sys.getenv "OCAMLRUNPARAM" with Not_found -> "unset")

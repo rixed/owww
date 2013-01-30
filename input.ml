@@ -46,7 +46,8 @@ sig
     val max : int option
 end
 
-module NoLimit : LIMIT = struct
+module NoLimit : LIMIT =
+struct
     let min = None
     let max = None
 end
@@ -99,7 +100,8 @@ sig
     val max : float option
 end
 
-module NoLimit_float : LIMIT_FLOAT = struct
+module NoLimit_float : LIMIT_FLOAT =
+struct
     let min = None
     let max = None
 end

@@ -5,7 +5,7 @@ module Invalid =
 struct
     let run _args =
         let msg = "OMG! The page you called for does not exist!" in
-        View.err [ p [cdata msg] ]
+        [ View.err [ p [cdata msg] ] ]
     let url = "omg" (* any non existent will do *)
 end
 
@@ -19,6 +19,6 @@ struct
                                     tr [th [cdata (n^":")] ;
                                         td [cdata v]] :: l)
                                   args [])) in
-        View.err [ tbl ]
+        [ View.err [ tbl ] ]
     let url = ""    (* *)
 end

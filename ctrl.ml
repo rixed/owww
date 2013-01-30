@@ -1,9 +1,11 @@
 open Batteries
 open Html
 
+let cgi_params = Cgi.parse_args ()
+
 module Invalid =
 struct
-    let run _args =
+    let run _getter =
         let msg = "OMG! The page you called for does not exist!" in
         [ View.err [ p [cdata msg] ] ]
     let url = "omg" (* any non existent will do *)
@@ -11,14 +13,16 @@ end
 
 module Info =
 struct
-    let run args =
+    let run _getter =
         let tbl = table
-                    ((tr [td [cdata "name"] ;
-                         td [cdata "value"]]) ::
-                    (Hashtbl.fold (fun n v l ->
-                                    tr [th [cdata (n^":")] ;
-                                        td [cdata v]] :: l)
-                                  args [])) in
+                    ((tr [th [cdata "name"] ;
+                          th [cdata "value"]]) ::
+                    (List.fold_left
+                        (fun l (n, v) ->
+                            tr [th [cdata (n^":")] ;
+                                td [cdata v]] :: l)
+                        []
+                        cgi_params)) in
         [ View.err [ tbl ] ]
     let url = ""    (* *)
 end

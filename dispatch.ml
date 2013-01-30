@@ -18,29 +18,29 @@ let add_cookie n v =
     Hashtbl.replace set_cookies n v
 
 let run d =
-    let args =
+    let getter =
         current_cookies := Cgi.parse_cookies () ;
-        let h = Hashtbl.create 17
-        and all_args = Cgi.parse_args () @ !current_cookies in
-        List.iter (fun (n,v) -> Hashtbl.add h n v) all_args ;
-        h in
+        let h = Hashtbl.create 17 in
+        List.iter (fun (n,v) -> Hashtbl.add h n v)
+            (Ctrl.cgi_params @ !current_cookies) ;
+        Hashtbl.find_all h in
     let action =
-        try Hashtbl.find args "action" |>
-            String.nsplit ~by:"/"
-        with Not_found -> ["main"] in
+        match getter "action" with
+        | [a] -> String.nsplit ~by:"/" a
+        | _   -> ["main"] in
     let runner = try d action
                  with _ -> Ctrl.Invalid.run in
-    let doc = try runner args
+    let doc = try runner getter
               with e ->
                   [ View.err (View.backtrace e) ] in
     let cookies = Hashtbl.fold (fun k v l -> (k,v)::l) set_cookies [] in
     Cgi.header ~content_type:!content_type ~cookies () ;
     List.iter (Html.print stdout) doc ;
-    if Hashtbl.mem args "debug" then
+    if getter "debug" <> [] then
         Printf.printf "\n<!-- OCAMLRUNPARAM: %s\nURL: %s\nPATH_INFO: %a\nARGS: %a\n Debug:\n %a -->\n"
             (try Sys.getenv "OCAMLRUNPARAM" with Not_found -> "unset")
             (Cgi.this_url ())
             (List.print String.print) Cgi.path_info
-            (Hashtbl.print String.print String.print) args
+            (List.print String.print) (List.map (fun (k,v) -> k^":"^v) Ctrl.cgi_params)
             (List.print ~sep:"<br/>\n" String.print) (List.rev !debug_msgs)
 

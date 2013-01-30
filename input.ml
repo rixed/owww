@@ -14,8 +14,8 @@ module Ops = struct
         (** The internal type for these values *)
         type t
 
-        val to_edit : string -> (string -> string option) -> html
-        val from : string -> (string -> string option) -> t
+        val to_edit : string -> (string -> string list) -> html
+        val from : string -> (string -> string list) -> t
         (** or raise a exception *)
     end
 
@@ -26,11 +26,11 @@ module Ops = struct
         (** The internal type for these values *)
         type t
 
-        val to_edit : string -> (string -> string option) -> html
-        val from : string -> (string -> string option) -> t
+        val to_edit : string -> (string -> string list) -> html
+        val from : string -> (string -> string list) -> t
     end
 
-    let input_text_of name getter = getter name |? ""
+    let input_text_of name getter = match getter name with [] -> "" | x::_ -> x
     let input_error str = raise (InputError str)
     let missing_field_str = "this field is mandatory"
     let missing_field () = input_error missing_field_str
@@ -69,17 +69,18 @@ struct
                  size_cstr) ]
     let from name getter =
         match getter name with
-        | None | Some "" -> missing_field ()
-        | Some s -> try let n = int_of_string s in
-                        let min = Option.default n Limit.min
-                        and max = Option.default n Limit.max in
-                        if n < min then (
-                            input_error (Printf.sprintf "must not be less than %d" min)
-                        ) else if n > max then (
-                            input_error (Printf.sprintf "must not be greater than %d" max)
-                        ) else n
-                    with Failure _ ->
-                        input_error "not an integer"
+        | [] | [""] -> missing_field ()
+        | s::_ ->
+            try let n = int_of_string s in
+                let min = Option.default n Limit.min
+                and max = Option.default n Limit.max in
+                if n < min then (
+                    input_error (Printf.sprintf "must not be less than %d" min)
+                ) else if n > max then (
+                    input_error (Printf.sprintf "must not be greater than %d" max)
+                ) else n
+            with Failure _ ->
+                input_error "not an integer"
 end
 
 (** Implementation for an optional input *)
@@ -115,17 +116,18 @@ struct
                   "value", input_text_of name getter ] ]
     let from name getter =
         match getter name with
-        | None | Some "" -> missing_field ()
-        | Some s -> try let n = float_of_string s in
-                        let min = Option.default n Limit.min
-                        and max = Option.default n Limit.max in
-                        if n < min then (
-                            input_error (Printf.sprintf "must not be less than %f" min)
-                        ) else if n > max then (
-                            input_error (Printf.sprintf "must not be greater than %f" max)
-                        ) else n
-                    with Failure _ ->
-                        input_error "not a real number"
+        | [] | [""] -> missing_field ()
+        | s::_ ->
+            try let n = float_of_string s in
+                let min = Option.default n Limit.min
+                and max = Option.default n Limit.max in
+                if n < min then (
+                    input_error (Printf.sprintf "must not be less than %f" min)
+                ) else if n > max then (
+                    input_error (Printf.sprintf "must not be greater than %f" max)
+                ) else n
+            with Failure _ ->
+                input_error "not a real number"
 end
 
 module Boolean :
@@ -133,7 +135,7 @@ module Boolean :
 struct
     type t = bool
     let to_edit name getter =
-        let is_true = getter name = Some "true" in
+        let is_true = getter name = ["true"] in
         [ input ([ "type", "radio" ;
                    "name", name ;
                    "value", "true" ] @
@@ -145,7 +147,7 @@ struct
                  (if not is_true then ["checked","checked"] else [])) ;
           raw "False" ]
     let from name getter =
-        getter name |> BatOption.get |> bool_of_string
+        getter name |> List.hd |> bool_of_string
 end
 
 
@@ -160,8 +162,8 @@ struct
                   "value", input_text_of name getter ] ]
     let from name getter =
         match getter name with
-            | None | Some "" -> missing_field ()
-            | Some s ->
+            | [] | [""] -> missing_field ()
+            | s::_ ->
                 let len = StdString.length s in
                 let min = Option.default len Limit.min
                 and max = Option.default len Limit.max in
@@ -172,7 +174,8 @@ end
 
 module type ENUM_OPTIONS =
 sig
-    val name : string val options : string array
+    val name : string
+    val options : string array
 end
 
 let select_box name ?(any=false) options selected =
@@ -180,7 +183,7 @@ let select_box name ?(any=false) options selected =
         tag "option"
             ~attrs:(
                 ("value", string_of_int i)::
-                (if selected = Some i then [ "selected", "selected" ] else [])
+                (if List.mem i selected then [ "selected", "selected" ] else [])
             )
             [ cdata n ] in
     let opts = Array.mapi option_of_value options |>
@@ -192,21 +195,27 @@ let select_box name ?(any=false) options selected =
           ~attrs:[ "name", name ]
           opts ]
 
+let value_to_idx options v =
+    try int_of_string v
+    with Failure _ ->
+        Array.findi ((=) v) options
+
 module Enum (E : ENUM_OPTIONS) :
     TYPE with type t = int =
 struct
     type t = int
     let to_edit name getter =
         let selected = try getter name |>
-                           Option.map int_of_string
-                       with Failure _ -> None in
+                           List.map (value_to_idx E.options)
+                       with Failure _ -> [] in
         select_box name E.options selected
     let from name getter =
         match getter name with
-        | None | Some "" -> missing_field ()
-        | Some s -> let i = try int_of_string s with Failure _ -> -1 in
-                    if i >= 0 && i < Array.length E.options then i
-                    else input_error "not a valid choice"
+        | [] | [""] -> missing_field ()
+        | s::_ ->
+            let i = try value_to_idx E.options s with Failure _ -> -1 in
+            if i >= 0 && i < Array.length E.options then i
+            else input_error "not a valid choice"
 end
 
 module OptEnum (E : ENUM_OPTIONS) :
@@ -215,8 +224,8 @@ struct
     include Optional(Enum(E))
     let to_edit name getter =
         let selected = try getter name |>
-                           Option.map int_of_string
-                       with Failure _ -> None in
+                           List.map (value_to_idx E.options)
+                       with Failure _ -> [] in
         select_box name ~any:true E.options selected
 end
 
@@ -243,17 +252,17 @@ struct
         (* Complete getter with cookies *)
         let getter' =
             if F.persistant then (
-                match getter id with
-                | Some _ -> (* If we had a value, don't mess with it *)
+                if getter id <> [] then
+                    (* If we had a value, don't mess with it *)
                     getter
-                | None ->
+                else (
                     Dispatch.debug_msg (Printf.sprintf "No value supplied for persistant %s" F.uniq_name) ;
                     (* provide the one from cookies *)
                     (try let s = List.assoc F.uniq_name !Dispatch.current_cookies in
                         let s = decode_cookie s in
                         if s <> "" then (
                             Dispatch.debug_msg (Printf.sprintf "Some value found in cookies for %s" F.uniq_name) ;
-                            (fun n -> if n = id then Some s else getter n)
+                            (fun n -> if n = id then [s] else getter n)
                         ) else (
                             Dispatch.debug_msg (Printf.sprintf "empty value found in cookies for %s" F.uniq_name) ;
                             getter
@@ -264,6 +273,7 @@ struct
                        | Base64.Invalid_char ->
                             Printf.fprintf stderr "Invalid char while decoding cookie value of %s\n" F.uniq_name ;
                             getter)
+                )
             ) else (
                 (* F is not persistant *)
                 getter
@@ -278,7 +288,7 @@ struct
             (* Was a value suplied? We must look ourself since F.Type.from could trigger
              * an error if no value was found *)
             match getter id with
-            | Some v when v <> "" ->
+            | v::_ when v <> "" ->
                 (* We had a value! Save it *)
                 Dispatch.debug_msg (Printf.sprintf "Saving value '%s' for persistant %s" v F.uniq_name) ;
                 Dispatch.add_cookie F.uniq_name (encode_cookie v) ;

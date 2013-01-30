@@ -14,8 +14,8 @@ module Ops = struct
         (** The internal type for these values *)
         type t
 
-        val to_edit : string -> (string, string) Hashtbl.t -> html
-        val from_args : string -> (string, string) Hashtbl.t -> t
+        val to_edit : string -> (string -> string option) -> html
+        val from : string -> (string -> string option) -> t
         (** or raise a exception *)
     end
 
@@ -26,11 +26,11 @@ module Ops = struct
         (** The internal type for these values *)
         type t
 
-        val to_edit : string -> (string, string) Hashtbl.t -> html
-        val from_args : string -> (string, string) Hashtbl.t -> t
+        val to_edit : string -> (string -> string option) -> html
+        val from : string -> (string -> string option) -> t
     end
 
-    let input_text_of name args = Hashtbl.find_option args name |? ""
+    let input_text_of name getter = getter name |? ""
     let input_error str = raise (InputError str)
     let missing_field_str = "this field is mandatory"
     let missing_field () = input_error missing_field_str
@@ -57,7 +57,7 @@ module Integer (Limit : LIMIT) :
     TYPE with type t = int =
 struct
     type t = int
-    let to_edit name args =
+    let to_edit name getter =
         let size_cstr = Option.map_default (fun x ->
                           let s = float_of_int x |>
                                   log10 |> ceil |>
@@ -65,10 +65,10 @@ struct
                           [ "maxlength", string_of_int s ; "size", string_of_int s ])
                           [] Limit.max in
         [ input (("name", name) ::
-                 ("value", input_text_of name args) ::
+                 ("value", input_text_of name getter) ::
                  size_cstr) ]
-    let from_args name args =
-        match Hashtbl.find_option args name with
+    let from name getter =
+        match getter name with
         | None | Some "" -> missing_field ()
         | Some s -> try let n = int_of_string s in
                         let min = Option.default n Limit.min
@@ -88,8 +88,8 @@ module Optional (Type : TYPE) :
 struct
     type t = Type.t option
     let to_edit = Type.to_edit
-    let from_args name args =
-        try Some (Type.from_args name args)
+    let from name getter =
+        try Some (Type.from name getter)
         with InputError s when s = missing_field_str -> None
 end
 
@@ -110,11 +110,11 @@ module Float (Limit : LIMIT_FLOAT) :
     TYPE with type t = float =
 struct
     type t = float
-    let to_edit name args =
+    let to_edit name getter =
         [ input [ "name", name ;
-                  "value", input_text_of name args ] ]
-    let from_args name args =
-        match Hashtbl.find_option args name with
+                  "value", input_text_of name getter ] ]
+    let from name getter =
+        match getter name with
         | None | Some "" -> missing_field ()
         | Some s -> try let n = float_of_string s in
                         let min = Option.default n Limit.min
@@ -132,8 +132,8 @@ module Boolean :
     TYPE with type t = bool =
 struct
     type t = bool
-    let to_edit name args =
-        let is_true = Hashtbl.find_option args name = Some "true" in
+    let to_edit name getter =
+        let is_true = getter name = Some "true" in
         [ input ([ "type", "radio" ;
                    "name", name ;
                    "value", "true" ] @
@@ -144,8 +144,8 @@ struct
                    "value", "false" ] @
                  (if not is_true then ["checked","checked"] else [])) ;
           raw "False" ]
-    let from_args name args =
-        Hashtbl.find args name |> bool_of_string
+    let from name getter =
+        getter name |> BatOption.get |> bool_of_string
 end
 
 
@@ -154,12 +154,12 @@ module String (Limit : LIMIT) :
     TYPE with type t = string =
 struct
     type t = string
-    let to_edit name args =
+    let to_edit name getter =
         [ input [ "name", name ;
                   "size", string_of_int (min 20 (Limit.max |? 20)) ;
-                  "value", input_text_of name args ] ]
-    let from_args name args =
-        match Hashtbl.find_option args name with
+                  "value", input_text_of name getter ] ]
+    let from name getter =
+        match getter name with
             | None | Some "" -> missing_field ()
             | Some s ->
                 let len = StdString.length s in
@@ -196,13 +196,13 @@ module Enum (E : ENUM_OPTIONS) :
     TYPE with type t = int =
 struct
     type t = int
-    let to_edit name args =
-        let selected = try Hashtbl.find_option args name |>
+    let to_edit name getter =
+        let selected = try getter name |>
                            Option.map int_of_string
                        with Failure _ -> None in
         select_box name E.options selected
-    let from_args name args =
-        match Hashtbl.find_option args name with
+    let from name getter =
+        match getter name with
         | None | Some "" -> missing_field ()
         | Some s -> let i = try int_of_string s with Failure _ -> -1 in
                     if i >= 0 && i < Array.length E.options then i
@@ -213,8 +213,8 @@ module OptEnum (E : ENUM_OPTIONS) :
     TYPE with type t = int option =
 struct
     include Optional(Enum(E))
-    let to_edit name args =
-        let selected = try Hashtbl.find_option args name |>
+    let to_edit name getter =
+        let selected = try getter name |>
                            Option.map int_of_string
                        with Failure _ -> None in
         select_box name ~any:true E.options selected
@@ -236,51 +236,58 @@ module FieldOf (F : FIELD_SPEC) :
 struct
     type t = F.Type.t
 
-    let id_of name = name ^"."^ F.uniq_name
+    let id_of name = name ^"/"^ F.uniq_name
 
-    let to_edit name args =
+    let to_edit name getter =
         let id = id_of name in
-        (* Complete args with cookies *)
-        if F.persistant then (
-            match Hashtbl.find_option args id with
-            | Some _ -> (* If we had a value, don't mess with it *)
-                ()
-            | None ->
-                Dispatch.debug_msg (Printf.sprintf "No value supplied for persistant %s" F.uniq_name) ;
-                (* provide the one from cookies *)
-                (try let s = List.assoc F.uniq_name !Dispatch.current_cookies in
-                    let s = decode_cookie s in
-                    if s <> "" then (
-                        Dispatch.debug_msg (Printf.sprintf "Some value found in cookies for %s" F.uniq_name) ;
-                        Hashtbl.replace args id s
-                    ) else (
-                        Dispatch.debug_msg (Printf.sprintf "empty value found in cookies for %s" F.uniq_name)
-                    )
-                with Not_found ->
-                        Dispatch.debug_msg (Printf.sprintf "No value found in cookies for %s" F.uniq_name) ;
-                   | Base64.Invalid_char ->
-                        Printf.fprintf stderr "Invalid char while decoding cookie value of %s\n" F.uniq_name)
-        ) ;
+        (* Complete getter with cookies *)
+        let getter' =
+            if F.persistant then (
+                match getter id with
+                | Some _ -> (* If we had a value, don't mess with it *)
+                    getter
+                | None ->
+                    Dispatch.debug_msg (Printf.sprintf "No value supplied for persistant %s" F.uniq_name) ;
+                    (* provide the one from cookies *)
+                    (try let s = List.assoc F.uniq_name !Dispatch.current_cookies in
+                        let s = decode_cookie s in
+                        if s <> "" then (
+                            Dispatch.debug_msg (Printf.sprintf "Some value found in cookies for %s" F.uniq_name) ;
+                            (fun n -> if n = id then Some s else getter n)
+                        ) else (
+                            Dispatch.debug_msg (Printf.sprintf "empty value found in cookies for %s" F.uniq_name) ;
+                            getter
+                        )
+                    with Not_found ->
+                            Dispatch.debug_msg (Printf.sprintf "No value found in cookies for %s" F.uniq_name) ;
+                            getter
+                       | Base64.Invalid_char ->
+                            Printf.fprintf stderr "Invalid char while decoding cookie value of %s\n" F.uniq_name ;
+                            getter)
+            ) else (
+                (* F is not persistant *)
+                getter
+            ) in
         [ tr [ th [cdata (F.display_name^":")] ;
-               td (F.Type.to_edit id args) ] ]
+               td (F.Type.to_edit id getter') ] ]
 
-    let from_args name args =
+    let from name getter =
         let id = id_of name in
-        (* complete cookies with args *)
+        (* complete cookies with getter *)
         if F.persistant then (
-            (* Was a value suplied? We must look ourself since F.Type.from_args could trigger
+            (* Was a value suplied? We must look ourself since F.Type.from could trigger
              * an error if no value was found *)
-            match Hashtbl.find_option args id with
+            match getter id with
             | Some v when v <> "" ->
                 (* We had a value! Save it *)
                 Dispatch.debug_msg (Printf.sprintf "Saving value '%s' for persistant %s" v F.uniq_name) ;
                 Dispatch.add_cookie F.uniq_name (encode_cookie v) ;
             | _ -> ()
         ) ;
-        F.Type.from_args id args
+        F.Type.from id getter
 
-    let from_args name args =
-        try from_args name args
+    let from name getter =
+        try from name getter
         with InputError str -> input_error (F.display_name ^ ": " ^ str)
            | exc -> raise exc
 
@@ -294,12 +301,12 @@ module ConsOf (T1 : TYPE) (T2 : AGGR_TYPE) :
     AGGR_TYPE with type t = T1.t * T2.t =
 struct
     type t = T1.t * T2.t
-    let to_edit name args =
-        T1.to_edit name args @
-        T2.to_edit name args
-    let from_args name args =
-        T1.from_args name args,
-        T2.from_args name args
+    let to_edit name getter =
+        T1.to_edit name getter @
+        T2.to_edit name getter
+    let from name getter =
+        T1.from name getter,
+        T2.from name getter
 end
 
 (** Useful as end of ConsOf list *)
@@ -308,18 +315,18 @@ module NulType :
 struct
     type t = unit
     let to_edit _name _args = []
-    let from_args _name _args = ()
+    let from _name _args = ()
 end
 
 module RecordOf (T : AGGR_TYPE) :
     AGGR_TYPE with type t = T.t =
 struct
     type t = T.t
-    let to_edit name args =
-        [ table (T.to_edit name args @
+    let to_edit name getter =
+        [ table (T.to_edit name getter @
                  [ tr [ th ~attrs:["colspan","2"]
                            [ input ["type","submit" ;
                                     "value","submit"] ] ] ]) ]
-    let from_args = T.from_args
+    let from = T.from
 end
 

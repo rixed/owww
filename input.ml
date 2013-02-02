@@ -207,7 +207,7 @@ struct
     let to_edit name getter =
         let selected = try getter name |>
                            List.map (value_to_idx E.options)
-                       with Failure _ -> [] in
+                       with Failure _ | Not_found -> [] in
         select_box name E.options selected
     let from name getter =
         match getter name with
@@ -225,7 +225,7 @@ struct
     let to_edit name getter =
         let selected = try getter name |>
                            List.map (value_to_idx E.options)
-                       with Failure _ -> [] in
+                       with Failure _ | Not_found -> [] in
         select_box name ~any:true E.options selected
 end
 

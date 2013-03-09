@@ -207,15 +207,14 @@ struct
     let to_edit name getter =
         let selected = try getter name |>
                            List.map (value_to_idx E.options)
-                       with Failure _ | Not_found -> [] in
+                       with Not_found -> [] in
         select_box name E.options selected
     let from name getter =
         match getter name with
         | [] | [""] -> missing_field ()
         | s::_ ->
-            let i = try value_to_idx E.options s with Failure _ -> -1 in
-            if i >= 0 && i < Array.length E.options then i
-            else input_error "not a valid choice"
+            try value_to_idx E.options s
+            with Not_found -> input_error "not a valid choice"
 end
 
 module OptEnum (E : ENUM_OPTIONS) :
@@ -225,7 +224,7 @@ struct
     let to_edit name getter =
         let selected = try getter name |>
                            List.map (value_to_idx E.options)
-                       with Failure _ | Not_found -> [] in
+                       with Not_found -> [] in
         select_box name ~any:true E.options selected
 end
 

@@ -10,6 +10,7 @@
 *)
 open Batteries
 
+(* Strings used in tagname and attribute names are all made lowercase (for easier pattern matching) *)
 type attr = (string * string)
 type tag = (string * attr list * html)
 and html_chunk = Raw of string | CData of string | Tag of tag
@@ -19,8 +20,11 @@ and html = html_chunk list
 
 (** {2 Main} *)
 let tag name ?(attrs=[]) ?id ?cls content =
+    let lc = String.lowercase in
+    let attrs = List.map (fun (n,v) -> lc n, v) attrs in
     let attrs = match id with None -> attrs | Some str -> ("id", str)::attrs in
     let attrs = match cls with None -> attrs | Some str -> ("class", str)::attrs in
+    let name = lc name in
     Tag (name, attrs, content)
 
 let cdata txt = CData txt

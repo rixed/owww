@@ -1,8 +1,6 @@
 open Batteries
 open Html
 
-let cgi_params = Cgi.parse_args ()
-
 module Invalid =
 struct
     let run _getter =
@@ -14,6 +12,7 @@ end
 module Info =
 struct
     let run _getter =
+        let cgi_params = Cgi.parse_args () in
         let tbl = table
                     ((tr [th [cdata "name"] ;
                           th [cdata "value"]]) ::

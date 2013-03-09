@@ -18,11 +18,12 @@ let add_cookie n v =
     Hashtbl.replace set_cookies n v
 
 let run d =
+    let cgi_params = Cgi.parse_args () in
     let getter =
         current_cookies := Cgi.parse_cookies () ;
         let h = Hashtbl.create 17 in
         List.iter (fun (n,v) -> Hashtbl.add h n v)
-            (Ctrl.cgi_params @ !current_cookies) ;
+            (cgi_params @ !current_cookies) ;
         Hashtbl.find_all h in
     let action =
         match getter "action" with
@@ -41,6 +42,6 @@ let run d =
             (try Sys.getenv "OCAMLRUNPARAM" with Not_found -> "unset")
             (Cgi.this_url ())
             (List.print String.print) Cgi.path_info
-            (List.print String.print) (List.map (fun (k,v) -> k^":"^v) Ctrl.cgi_params)
+            (List.print String.print) (List.map (fun (k,v) -> k^":"^v) cgi_params)
             (List.print ~sep:"<br/>\n" String.print) (List.rev !debug_msgs)
 

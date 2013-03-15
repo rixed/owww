@@ -7,6 +7,7 @@ SOURCES = \
 	ctrl.ml \
 	dispatch.ml \
 	input.ml \
+	inliner.mli inliner.ml \
 
 REQUIRES = batteries cgi
 

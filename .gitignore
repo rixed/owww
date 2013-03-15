@@ -18,7 +18,6 @@ _build
 doc/*.html
 doc/doc.txt
 persist
-TODO
 *.log
 all_tests.ml
 core

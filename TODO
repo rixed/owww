@@ -3,3 +3,5 @@ Inliner
 
 * inline image using data URI
 
+* inline external resources
+

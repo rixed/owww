@@ -46,6 +46,8 @@ let filter rootdir doc =
           aux rest
         | Tag (n, a, c) :: rest ->
             Tag (n, a, aux c) :: aux rest
+        | Block h :: rest ->
+            Block (aux h) :: aux rest
         | x :: rest -> x :: aux rest
         | [] -> [] in
     aux doc

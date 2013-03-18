@@ -13,7 +13,10 @@ open Batteries
 (* Strings used in tagname and attribute names are all made lowercase (for easier pattern matching) *)
 type attr = (string * string)
 type tag = (string * attr list * html)
-and html_chunk = Raw of string | CData of string | Tag of tag
+and html_chunk = Raw of string   (* copied verbatim *)
+               | CData of string (* html entities replaced *)
+               | Tag of tag      (* an element *)
+               | Block of html   (* for comodity, will be inlined *)
 and html = html_chunk list
 
 (** {1 Helpers to build simple docs} *)
@@ -119,6 +122,7 @@ and print oc = function
     | CData s -> print_cdata oc s
     | Raw s -> print_string oc s
     | Tag t -> print_tag oc t
+    | Block h -> List.iter (print oc) h
 
 let print_xml_head oc =
     Printf.fprintf oc "<!DOCTYPE html\n          PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n          \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n"

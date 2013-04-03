@@ -19,6 +19,33 @@ and html_chunk = Raw of string   (* copied verbatim *)
                | Block of html   (* for comodity, will be inlined *)
 and html = html_chunk list
 
+(* {1 Helper for attribute list (structuraly an alist)} *)
+
+module AList = struct
+    let mem al ?value_match name =
+        List.exists (fun (n,v) ->
+            n = name && match value_match with None -> true | Some f -> f v) al
+
+    let find al name = List.assoc name al
+
+    let filter_out names al =
+        let rec aux res = function
+            | [] -> List.rev res
+            | (n,_ as x)::rest ->
+                aux (if List.mem n names then res else x::res) rest
+        in aux [] al
+
+    let starts_with a b = String.starts_with b a
+
+    let has_word w =
+        let re = Str.regexp @@ "\\b"^ Str.quote w ^"\\b" in
+        fun s -> try Str.search_forward re s 0 |> ignore ; true
+                 with Not_found -> false
+
+end
+
+
+
 (** {1 Helpers to build simple docs} *)
 
 (** {2 Main} *)

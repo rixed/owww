@@ -1,22 +1,6 @@
 open Batteries
 
-module AList = struct
-    let mem al ?value_match name =
-        List.exists (fun (n,v) ->
-            n = name && match value_match with None -> true | Some f -> f v) al
-    
-    let find al name = List.assoc name al
-
-    let filter_out names al =
-        let rec aux res = function
-            | [] -> List.rev res
-            | (n,_ as x)::rest ->
-                aux (if List.mem n names then res else x::res) rest
-        in aux [] al
-end
-
 let filter rootdir doc =
-    let starts_with a b = String.starts_with b a in
     let abspath f = rootdir ^"/"^ f in
     let read_file f =
         let os = IO.output_string () in
@@ -26,8 +10,8 @@ let filter rootdir doc =
     let open Html in
     let rec aux = function
         | Tag ("script", a, []) :: rest
-          when AList.mem a "type" ~value_match:(starts_with "text/")
-            && AList.mem a "src" ~value_match:(starts_with "http://" %> not) ->
+          when AList.(mem a "type" ~value_match:(starts_with "text/"))
+            && AList.(mem a "src" ~value_match:(starts_with "http://" %> not)) ->
           let src = AList.find a "src" in
           let content = read_file src in
           Tag ("script",
@@ -35,9 +19,9 @@ let filter rootdir doc =
                [ Raw content ]) ::
           aux rest
         | Tag ("link", a, []) :: rest
-          when AList.mem a "type" ~value_match:(starts_with "text/")
-            && AList.mem a "rel" ~value_match:((=) "stylesheet")
-            && AList.mem a "href" ~value_match:(starts_with "http://" %> not) ->
+          when AList.(mem a "type" ~value_match:(starts_with "text/"))
+            && AList.(mem a "rel" ~value_match:((=) "stylesheet"))
+            && AList.(mem a "href" ~value_match:(starts_with "http://" %> not)) ->
           let src = AList.find a "href" in
           let content = read_file src in
           Tag ("style",

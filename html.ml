@@ -53,7 +53,7 @@ let link_css url = tag "link" ~attrs:["rel","stylesheet"; "type","text/css"; "hr
 let default_html_attrs = [ "xmlns", "http://www.w3.org/1999/xhtml" ; "xml:lang", "en" ]
 let html ?(attrs=default_html_attrs) head body =
     tag "html" ~attrs [ tag "head" head ; tag "body" body ]
-let script str = tag "script" ~attrs:["type","text/javascript"] [ raw str ]
+let script ?(attrs=[]) str = tag "script" ~attrs:(("type","text/javascript")::attrs) [ raw str ]
 let span = tag "span"
 let pre = tag "pre"
 

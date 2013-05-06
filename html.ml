@@ -102,6 +102,8 @@ let print_cdata oc s =
         | '&' -> print_string oc "&and;"
         | '<' -> print_string oc "&lt;"
         | '>' -> print_string oc "&gt;"
+        | '\'' -> print_string oc "&apos;"
+        | '"' -> print_string oc "&quot;"
         (* etc *)
         | c -> print_char oc c) s
 

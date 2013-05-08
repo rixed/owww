@@ -69,6 +69,7 @@ let emph = em
 let bold ?attrs ?id txt = tag "b" ?attrs ?id [ cdata txt ]
 let div = tag "div"
 let input ?id ?cls attrs = tag "input" ~attrs ?id ?cls []
+let button ?id ?cls ?attrs = tag "button" ?attrs ?id ?cls
 let hidden ?attrs ?id name value =
     input ?id ((BatOption.default [] attrs) @ [ "type", "hidden"; "name", name; "value", value ])
 let form ?(hiddens=[]) action ?attrs ?id ?cls content =

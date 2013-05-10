@@ -332,10 +332,14 @@ module RecordOf (T : AGGR_TYPE) :
 struct
     type t = T.t
     let to_edit name getter =
-        [ table (T.to_edit name getter @
-                 [ tr [ th ~attrs:["colspan","2"]
-                           [ input ["type","submit" ;
-                                    "value","submit"] ] ] ]) ]
+        let submit visible =
+            let attrs = ["type","submit" ; "value","submit"] in
+            let attrs = if visible then attrs else ("style","width:0px;height:0px;margin:0px;padding:0px;outline:none;border:0px")::attrs in
+            input attrs in
+        [ submit false ;
+          table [
+            Block (T.to_edit name getter) ;
+            tr [ th ~attrs:["colspan","2"] [ submit true ] ] ] ]
     let from = T.from
 end
 

@@ -28,7 +28,7 @@ let run d =
     let action =
         match getter "action" with
         | [a] -> String.nsplit ~by:"/" a
-        | _   -> ["main"] in
+        | _   -> [] in
     let runner = try d action
                  with _ -> Ctrl.Invalid.run in
     let doc = try runner getter

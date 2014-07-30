@@ -16,10 +16,10 @@ type tag = (string * attr list * html)
 and html_chunk = Raw of string   (* copied verbatim *)
                | CData of string (* html entities replaced *)
                | Tag of tag      (* an element *)
-               | Block of html   (* for comodity, will be inlined *)
+               | Block of html   (* for commodity, will be inlined *)
 and html = html_chunk list
 
-(* {1 Helper for attribute list (structuraly an alist)} *)
+(* {1 Helper for attribute list (structurally an alist)} *)
 
 module AList = struct
     let mem al ?value_match name =
@@ -69,19 +69,29 @@ let emph = em
 let bold ?attrs ?id txt = tag "b" ?attrs ?id [ cdata txt ]
 let div = tag "div"
 let input ?id ?cls attrs = tag "input" ~attrs ?id ?cls []
+let input_tnv ?id ?cls ?(attrs=[]) typ name value =
+    input ?id ?cls (["type",typ; "name",name; "value",value] @ attrs)
+let input_checkbox ?id ?cls ?attrs name value = input_tnv ?id ?cls ?attrs "checkbox" name value
+let input_radio ?id ?cls ?attrs name value = input_tnv ?id ?cls ?attrs "radio" name value
+let input_text ?id ?cls ?attrs name value = input_tnv ?id ?cls ?attrs "text" name value
+let input_passwd ?id ?cls ?attrs name value = input_tnv ?id ?cls ?attrs "password" name value
+let input_submit ?id ?cls ?attrs name value = input_tnv ?id ?cls ?attrs "submit" name value
+let label ?id ?cls ?attrs = tag "label" ?attrs ?id ?cls
 let button ?id ?cls ?attrs = tag "button" ?attrs ?id ?cls
 let hidden ?attrs ?id name value =
     input ?id ((BatOption.default [] attrs) @ [ "type", "hidden"; "name", name; "value", value ])
-let form ?(hiddens=[]) action ?attrs ?id ?cls content =
-    let hiddens = ("action", action) :: hiddens in
+let form ?(hiddens=[]) ?attrs ?id ?cls content =
     let h = List.map (fun (name, value) -> hidden name value) hiddens in
     tag "form" ?attrs ?id ?cls (h @ content)
 let title ?attrs ?id txt = tag "title" ?attrs ?id [ cdata txt ]
 let link_css url = tag "link" ~attrs:["rel","stylesheet"; "type","text/css"; "href",url] []
+let a ?alt href content =
+    let attrs = match alt with None -> [] | Some alt -> ["alt",alt] in
+    let attrs = ("href",href)::attrs in
+    tag ~attrs "a" content
 let default_html_attrs = [ "xmlns", "http://www.w3.org/1999/xhtml" ; "xml:lang", "en" ]
 let html ?(attrs=default_html_attrs) head body =
     tag "html" ~attrs [ tag "head" head ; tag "body" body ]
-let script ?(attrs=[]) str = tag "script" ~attrs:(("type","text/javascript")::attrs) [ raw str ]
 let span = tag "span"
 let pre = tag "pre"
 let ul = tag "ul"
@@ -165,6 +175,24 @@ let print_xml_head oc =
 
 let comment txt =
     raw ("\n<!-- " ^ txt ^ "-->\n")
+
+(** {1 Javascript} *)
+
+let script ?(attrs=[]) str = tag "script" ~attrs:(("type","text/javascript")::attrs) [ raw str ]
+
+module JSValue = struct
+    type t = String of string | Num of float | Bool of bool
+    let print fmt = function
+        | String s -> Printf.fprintf fmt "'%s'" (String.nreplace s "'" "\\'")
+        | Num f -> Printf.fprintf fmt "%g" f
+        | Bool b -> Printf.fprintf fmt (if b then "true" else "false")
+end
+
+let json d =
+    IO.to_string
+        (List.print ~first:"{" ~last:"}" ~sep:","
+            (Tuple2.print ~first:"" ~last:"" ~sep:":" String.print JSValue.print)) d |>
+    raw
 
 (** {1 SVG} *)
 

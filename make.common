@@ -5,9 +5,9 @@ OCAMLLEX   = ocamllex
 OCAMLYACC  = ocamlyacc
 OCAMLDEP   = ocamlfind ocamldep
 OCAMLDOC   = ocamlfind ocamldoc -html -colorize-code -all-params
-OCAMLMKTOP = ocamlfind ocamlmktop -g
-override OCAMLOPTFLAGS += $(INCS) -w Ael -g -annot -inline 50
-override OCAMLFLAGS    += $(INCS) -w Ael -g -annot
+OCAMLMKTOP = ocamlfind ocamlmktop -g -w Ael-31-44-45
+override OCAMLOPTFLAGS += $(INCS) -w Ael-31-44-45 -g -annot -inline 50
+override OCAMLFLAGS    += $(INCS) -w Ael-31-44-45 -g -annot
 
 .PHONY: opt clean clean-spec install uninstall reinstall doc clear
 

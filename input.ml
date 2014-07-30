@@ -136,16 +136,18 @@ struct
     type t = bool
     let to_edit name getter =
         let is_true = getter name = ["true"] in
-        [ input ([ "type", "radio" ;
-                   "name", name ;
-                   "value", "true" ] @
-                 (if is_true then ["checked","checked"] else [])) ;
-          raw "True" ;
-          input ([ "type", "radio" ;
-                   "name", name ;
-                   "value", "false" ] @
-                 (if not is_true then ["checked","checked"] else [])) ;
-          raw "False" ]
+        [ label [
+            input ([ "type", "radio" ;
+                     "name", name ;
+                     "value", "true" ] @
+                   (if is_true then ["checked","checked"] else [])) ;
+            raw "True" ] ;
+          label [
+            input ([ "type", "radio" ;
+                     "name", name ;
+                     "value", "false" ] @
+                   (if not is_true then ["checked","checked"] else [])) ;
+            raw "False" ] ]
     let from name getter =
         getter name |> List.hd |> bool_of_string
 end

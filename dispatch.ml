@@ -10,7 +10,7 @@ let debug_msg s =
 
 (* TODO: a dedicated hash type for args, with an indication where we got the entry from? *)
 
-let content_type = ref "text/html"
+let content_type = ref "application/xhtml+xml"
 let current_cookies = ref []
 let set_cookies = Hashtbl.create 11
 let add_cookie n v =

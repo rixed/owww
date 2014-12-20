@@ -181,12 +181,18 @@ let comment txt =
 let script ?(attrs=[]) str = tag "script" ~attrs:(("type","text/javascript")::attrs) [ raw str ]
 
 module JSValue = struct
-    type t = String of string | Num of float | Int of int | Bool of bool
-    let print fmt = function
+    type t = String of string
+           | Num of float
+           | Int of int
+           | Bool of bool
+           | List of t list
+
+    let rec print fmt = function
         | String s -> Printf.fprintf fmt "'%s'" (String.nreplace s "'" "\\'")
         | Num f -> Printf.fprintf fmt "%g" f
         | Int i -> Printf.fprintf fmt "%d" i
         | Bool b -> Printf.fprintf fmt (if b then "true" else "false")
+        | List l -> List.print ~first:"[" ~last:"]" ~sep:"," print fmt l
 end
 
 let json d =

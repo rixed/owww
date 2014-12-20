@@ -17,6 +17,19 @@ let add_cookie n v =
     debug_msg (Printf.sprintf "Add cookie %s -> %s" n v) ;
     Hashtbl.replace set_cookies n v
 
+(* Helpers to get a single argument (most current case) *)
+exception MissingParameter of string
+let single getter ?default n =
+  match getter n with
+  | [] -> (match default with
+             None -> raise (MissingParameter n)
+           | Some d -> d)
+  | f :: _ -> f
+let single_int getter ?default n =
+  single getter ?default n |> int_of_string
+let single_float getter ?default n =
+  single getter ?default n |> float_of_string
+
 let run d =
     let cgi_params = Cgi.parse_args () in
     let getter =

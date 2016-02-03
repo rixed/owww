@@ -30,7 +30,7 @@ let single_int getter ?default n =
 let single_float getter ?default n =
   single getter ?default n |> float_of_string
 
-let run d =
+let serve f =
     let cgi_params = Cgi.parse_args () in
     let getter =
         current_cookies := Cgi.parse_cookies () ;
@@ -38,13 +38,7 @@ let run d =
         List.iter (fun (n,v) -> Hashtbl.add h n v)
             (cgi_params @ !current_cookies) ;
         Hashtbl.find_all h in
-    let action =
-        match getter "action" with
-        | [a] -> String.nsplit ~by:"/" a
-        | _   -> [] in
-    let runner = try d action
-                 with _ -> Ctrl.Invalid.run in
-    let doc = try runner getter
+    let doc = try f getter
               with e ->
                   [ View.err (View.backtrace e) ] in
     let cookies = Hashtbl.fold (fun k v l -> (k,v)::l) set_cookies [] in
@@ -57,4 +51,15 @@ let run d =
             (List.print String.print) Cgi.path_info
             (List.print String.print) (List.map (fun (k,v) -> k^":"^v) cgi_params)
             (List.print ~sep:"<br/>\n" String.print) (List.rev !debug_msgs)
+
+(* Serves according to a dispatch function on the value of "action" parameter *)
+let run d =
+    serve (fun getter ->
+        let action =
+            match getter "action" with
+            | [a] -> String.nsplit ~by:"/" a
+            | _   -> [] in
+        let runner = try d action
+                     with _ -> Ctrl.Invalid.run in
+        runner getter)
 

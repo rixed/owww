@@ -10,7 +10,9 @@ let debug_msg s =
 
 (* TODO: a dedicated hash type for args, with an indication where we got the entry from? *)
 
-let content_type = ref "application/xhtml+xml"
+let default_content_type = "application/xhtml+xml"
+let content_type = ref default_content_type
+let status = ref (200, "OK")
 let current_cookies = ref []
 let set_cookies = Hashtbl.create 11
 let add_cookie n v =
@@ -31,6 +33,9 @@ let single_float getter ?default n =
   single getter ?default n |> float_of_string
 
 let serve f =
+    content_type :=
+      (try Sys.getenv "CONTENT_TYPE"
+       with Not_found -> default_content_type) ;
     let cgi_params = Cgi.parse_args () in
     let getter =
         current_cookies := Cgi.parse_cookies () ;
@@ -38,11 +43,15 @@ let serve f =
         List.iter (fun (n,v) -> Hashtbl.add h n v)
             (cgi_params @ !current_cookies) ;
         Hashtbl.find_all h in
-    let doc = try f getter
+    (* body is whatever is in stdin, until either CONTENT_LENGTH or EOF *)
+    let body = Cgi.read_body () in
+    let doc = try f getter body
               with e ->
+                  content_type := "text/html" ;
+                  status := 500, "Uncaught Exception" ;
                   [ View.err (View.backtrace e) ] in
     let cookies = Hashtbl.fold (fun k v l -> (k,v)::l) set_cookies [] in
-    Cgi.header ~content_type:!content_type ~cookies () ;
+    Cgi.header ~status:(fst !status) ~err_msg:(snd !status) ~content_type:!content_type ~cookies () ;
     List.iter (Html.print stdout) doc ;
     if getter "debug" <> [] then
         Printf.printf "\n<!-- OCAMLRUNPARAM: %s\nURL: %s\nPATH_INFO: %a\nARGS: %a\n Debug:\n %a -->\n"
@@ -54,7 +63,7 @@ let serve f =
 
 (* Serves according to a dispatch function on the value of "action" parameter *)
 let run d =
-    serve (fun getter ->
+    serve (fun getter _body ->
         let action =
             match getter "action" with
             | [a] -> String.nsplit ~by:"/" a

@@ -22,6 +22,7 @@ $(XARCHIVE): $(XOBJECTS) $(CLIB)
 	$(OCAMLOPT) -a -o $@ $(SYNTAX) -package "$(REQUIRES)" $(OCAMLOPTFLAGS) $(XOBJECTS)
 install: $(ARCHIVE) $(XARCHIVE)
 	if test -f "$(XARCHIVE)" ; then extra="$(XARCHIVE) "`basename "$(XARCHIVE)" .cmxa`.a ; fi ; \
+	if test -n "$$extra" ; then extra="$$extra $(XOBJECTS)" ; fi ; \
 	ocamlfind install "$(PKG_NAME)" *.cmi "$(ARCHIVE)" META $$extra
 uninstall:
 	ocamlfind remove $(PKG_NAME)

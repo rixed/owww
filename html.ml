@@ -90,8 +90,10 @@ let a ?alt href content =
     let attrs = ("href",href)::attrs in
     tag ~attrs "a" content
 let default_html_attrs = [ "xmlns", "http://www.w3.org/1999/xhtml" ; "xml:lang", "en" ]
-let html ?(attrs=default_html_attrs) head body =
-    tag "html" ~attrs [ tag "head" head ; tag "body" body ]
+let html ?(attrs=default_html_attrs) ?onload head body =
+    tag "html" ~attrs [
+      tag "head" head ;
+      tag "body" ?attrs:(Option.map (fun x -> ["onload", x]) onload) body ]
 let span = tag "span"
 let pre = tag "pre"
 let ul = tag "ul"
@@ -105,6 +107,8 @@ let tr = tag "tr"
 let thead = tag "thead"
 let tbody = tag "tbody"
 let table = tag "table"
+let img ?attrs ?id src =
+  tag "img" ~attrs:(("src", src)::(Option.default [] attrs)) ?id []
 
 (** {1 Printers} *)
 

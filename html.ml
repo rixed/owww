@@ -235,7 +235,7 @@ let svg ?(attrs=[]) ?width ?height =
 
 let g = tag "g"
 
-let rect ?(attrs=[]) ?id ?cls ?fill ?stroke ?stroke_opacity ?fill_opacity ?stroke_width x y width height =
+let rect ?(attrs=[]) ?id ?cls ?fill ?stroke ?stroke_opacity ?stroke_dasharray ?fill_opacity ?stroke_width x y width height =
     let attrs = add_attrs (attrs @
                           [ "x", my_string_of_float x ;
                             "y", my_string_of_float y ;
@@ -243,23 +243,25 @@ let rect ?(attrs=[]) ?id ?cls ?fill ?stroke ?stroke_opacity ?fill_opacity ?strok
                             "height", my_string_of_float height ])
                           [ "fill", fill ;
                             "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "stroke-dasharray", stroke_dasharray ;
                             "fill-opacity", Option.map my_string_of_float fill_opacity ;
                             "stroke", stroke ;
                             "stroke-width", Option.map my_string_of_float stroke_width ] in
     tag "rect" ~attrs ?id ?cls []
 
-let circle ?(attrs=[]) ?id ?cls ?cx ?cy ?fill ?stroke ?stroke_opacity ?fill_opacity ?stroke_width r =
+let circle ?(attrs=[]) ?id ?cls ?cx ?cy ?fill ?stroke ?stroke_opacity ?stroke_dasharray ?fill_opacity ?stroke_width r =
     let attrs = add_attrs (("r", my_string_of_float r) :: attrs)
                           [ "cx", Option.map my_string_of_float cx ;
                             "cy", Option.map my_string_of_float cy ;
                             "fill", fill ;
                             "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "stroke-dasharray", stroke_dasharray ;
                             "fill-opacity", Option.map my_string_of_float fill_opacity ;
                             "stroke", stroke ;
                             "stroke-width", Option.map my_string_of_float stroke_width ] in
     tag "circle" ~attrs ?id ?cls []
 
-let text ?(attrs=[]) ?id ?cls ?x ?y ?dx ?dy ?style ?rotate ?text_length ?length_adjust ?font_family ?font_size ?fill ?stroke ?stroke_width ?stroke_opacity ?fill_opacity txt =
+let text ?(attrs=[]) ?id ?cls ?x ?y ?dx ?dy ?style ?rotate ?text_length ?length_adjust ?font_family ?font_size ?fill ?stroke ?stroke_width ?stroke_opacity ?stroke_dasharray ?fill_opacity txt =
     let attrs = add_attrs attrs
                           [ "x",  Option.map my_string_of_float x ;
                             "y",  Option.map my_string_of_float y ;
@@ -273,6 +275,7 @@ let text ?(attrs=[]) ?id ?cls ?x ?y ?dx ?dy ?style ?rotate ?text_length ?length_
                             "font-size", Option.map my_string_of_float font_size ;
                             "fill", fill ;
                             "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "stroke-dasharray", stroke_dasharray ;
                             "fill-opacity", Option.map my_string_of_float fill_opacity ;
                             "stroke", stroke ;
                             "stroke-width", Option.map my_string_of_float stroke_width ] in
@@ -290,12 +293,13 @@ let texts ?attrs ?id ?dx ?dy ?style ?rotate ?text_length ?length_adjust ?font_fa
             (y +. sz *. 1.05) txts' in
     List.rev (aux [] y txts)
 
-let path ?(attrs=[]) ?id ?cls ?style ?transform ?fill ?stroke ?stroke_width ?stroke_opacity ?fill_opacity d =
+let path ?(attrs=[]) ?id ?cls ?style ?transform ?fill ?stroke ?stroke_width ?stroke_opacity ?stroke_dasharray ?fill_opacity d =
     let attrs = add_attrs (("d", d) :: attrs)
                           [ "style", style ;
                             "transform", transform ;
                             "fill", fill ;
                             "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "stroke-dasharray", stroke_dasharray ;
                             "fill-opacity", Option.map my_string_of_float fill_opacity ;
                             "stroke", stroke ;
                             "stroke-width", Option.map my_string_of_float stroke_width ] in
@@ -312,13 +316,14 @@ let smoothto (x2, y2) (x, y) =
          my_string_of_float x ^" "^my_string_of_float y ^" "
 let closepath = "Z"
 
-let line ?(attrs=[]) ?id ?cls ?style ?stroke ?stroke_width ?stroke_opacity (x1, y1) (x2, y2) =
+let line ?(attrs=[]) ?id ?cls ?style ?stroke ?stroke_width ?stroke_opacity ?stroke_dasharray (x1, y1) (x2, y2) =
     let attrs = add_attrs ([ "x1", my_string_of_float x1 ;
                              "y1", my_string_of_float y1 ;
                              "x2", my_string_of_float x2 ;
                              "y2", my_string_of_float y2 ] @ attrs)
                           [ "style", style ;
                             "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "stroke-dasharray", stroke_dasharray ;
                             "stroke", stroke ;
                             "stroke-width", Option.map my_string_of_float stroke_width ] in
     tag "line" ~attrs ?id ?cls []

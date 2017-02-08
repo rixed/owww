@@ -207,10 +207,20 @@ let json d =
 
 (** {1 SVG} *)
 
-let string_of_float f =
+let rec my_string_of_float f =
+    if f = 0. then "0" else  (* take good care of ~-.0. *)
+    if f < 0. then "-"^ my_string_of_float (~-.f) else
     (* SVG don't like digits ending with a dot *)
-    let s = Printf.sprintf "%5f" f in (* limit number of significant digits to reduce page size *)
-    if s.[String.length s-1] = '.' then s ^ "0" else s
+    let s = Printf.sprintf "%.5f" f in (* limit number of significant digits to reduce page size *)
+    (* chop trailing zeros and trailing dot *)
+    let rec chop last l =
+      let c = s.[l] in
+      if last || l < 1 || c <> '0' && c <> '.' then (
+        if l = String.length s - 1 then s else
+        String.sub s 0 (l + 1)
+      ) else
+        chop (c = '.') (l - 1) in
+    chop false (String.length s - 1)
 
 let rec add_attrs attrs = function
     | [] -> attrs
@@ -219,53 +229,53 @@ let rec add_attrs attrs = function
 
 let svg ?(attrs=[]) ?width ?height =
     let attrs = add_attrs attrs
-                          [ "width", Option.map string_of_float width ;
-                            "height", Option.map string_of_float height ] in
+                          [ "width", Option.map my_string_of_float width ;
+                            "height", Option.map my_string_of_float height ] in
     tag "svg" ~attrs
 
 let g = tag "g"
 
 let rect ?(attrs=[]) ?id ?cls ?fill ?stroke ?stroke_opacity ?fill_opacity ?stroke_width x y width height =
     let attrs = add_attrs (attrs @
-                          [ "x", string_of_float x ;
-                            "y", string_of_float y ;
-                            "width", string_of_float width ;
-                            "height", string_of_float height ])
+                          [ "x", my_string_of_float x ;
+                            "y", my_string_of_float y ;
+                            "width", my_string_of_float width ;
+                            "height", my_string_of_float height ])
                           [ "fill", fill ;
-                            "stroke-opacity", Option.map string_of_float stroke_opacity ;
-                            "fill-opacity", Option.map string_of_float fill_opacity ;
+                            "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "fill-opacity", Option.map my_string_of_float fill_opacity ;
                             "stroke", stroke ;
-                            "stroke-width", Option.map string_of_float stroke_width ] in
+                            "stroke-width", Option.map my_string_of_float stroke_width ] in
     tag "rect" ~attrs ?id ?cls []
 
 let circle ?(attrs=[]) ?id ?cls ?cx ?cy ?fill ?stroke ?stroke_opacity ?fill_opacity ?stroke_width r =
-    let attrs = add_attrs (("r", string_of_float r) :: attrs)
-                          [ "cx", Option.map string_of_float cx ;
-                            "cy", Option.map string_of_float cy ;
+    let attrs = add_attrs (("r", my_string_of_float r) :: attrs)
+                          [ "cx", Option.map my_string_of_float cx ;
+                            "cy", Option.map my_string_of_float cy ;
                             "fill", fill ;
-                            "stroke-opacity", Option.map string_of_float stroke_opacity ;
-                            "fill-opacity", Option.map string_of_float fill_opacity ;
+                            "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "fill-opacity", Option.map my_string_of_float fill_opacity ;
                             "stroke", stroke ;
-                            "stroke-width", Option.map string_of_float stroke_width ] in
+                            "stroke-width", Option.map my_string_of_float stroke_width ] in
     tag "circle" ~attrs ?id ?cls []
 
 let text ?(attrs=[]) ?id ?cls ?x ?y ?dx ?dy ?style ?rotate ?text_length ?length_adjust ?font_family ?font_size ?fill ?stroke ?stroke_width ?stroke_opacity ?fill_opacity txt =
     let attrs = add_attrs attrs
-                          [ "x",  Option.map string_of_float x ;
-                            "y",  Option.map string_of_float y ;
-                            "dx", Option.map string_of_float dx ;
-                            "dy", Option.map string_of_float dy ;
+                          [ "x",  Option.map my_string_of_float x ;
+                            "y",  Option.map my_string_of_float y ;
+                            "dx", Option.map my_string_of_float dx ;
+                            "dy", Option.map my_string_of_float dy ;
                             "style", style ;
-                            "rotate", Option.map string_of_float rotate ;
-                            "textLength", Option.map string_of_float text_length ;
-                            "lengthAdjust", Option.map string_of_float length_adjust ;
+                            "rotate", Option.map my_string_of_float rotate ;
+                            "textLength", Option.map my_string_of_float text_length ;
+                            "lengthAdjust", Option.map my_string_of_float length_adjust ;
                             "font-family", font_family ;
-                            "font-size", Option.map string_of_float font_size ;
+                            "font-size", Option.map my_string_of_float font_size ;
                             "fill", fill ;
-                            "stroke-opacity", Option.map string_of_float stroke_opacity ;
-                            "fill-opacity", Option.map string_of_float fill_opacity ;
+                            "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "fill-opacity", Option.map my_string_of_float fill_opacity ;
                             "stroke", stroke ;
-                            "stroke-width", Option.map string_of_float stroke_width ] in
+                            "stroke-width", Option.map my_string_of_float stroke_width ] in
     tag "text" ~attrs ?id ?cls [ raw txt ]
 
 (* Takes a list of (string * font_size) *)
@@ -285,31 +295,31 @@ let path ?(attrs=[]) ?id ?cls ?style ?transform ?fill ?stroke ?stroke_width ?str
                           [ "style", style ;
                             "transform", transform ;
                             "fill", fill ;
-                            "stroke-opacity", Option.map string_of_float stroke_opacity ;
-                            "fill-opacity", Option.map string_of_float fill_opacity ;
+                            "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
+                            "fill-opacity", Option.map my_string_of_float fill_opacity ;
                             "stroke", stroke ;
-                            "stroke-width", Option.map string_of_float stroke_width ] in
+                            "stroke-width", Option.map my_string_of_float stroke_width ] in
     tag "path" ~attrs ?id ?cls []
 
-let moveto (x, y) = "M "^string_of_float x^" "^string_of_float y^" "
-let lineto (x, y) = "L "^string_of_float x^" "^string_of_float y^" "
+let moveto (x, y) = "M "^my_string_of_float x^" "^my_string_of_float y^" "
+let lineto (x, y) = "L "^my_string_of_float x^" "^my_string_of_float y^" "
 let curveto (x1, y1) (x2, y2) (x, y) =
-    "C "^string_of_float x1^" "^string_of_float y1^" "^
-         string_of_float x2^" "^string_of_float y2^" "^
-         string_of_float x ^" "^string_of_float y ^" "
+    "C "^my_string_of_float x1^" "^my_string_of_float y1^" "^
+         my_string_of_float x2^" "^my_string_of_float y2^" "^
+         my_string_of_float x ^" "^my_string_of_float y ^" "
 let smoothto (x2, y2) (x, y) =
-    "S "^string_of_float x2^" "^string_of_float y2^" "^
-         string_of_float x ^" "^string_of_float y ^" "
+    "S "^my_string_of_float x2^" "^my_string_of_float y2^" "^
+         my_string_of_float x ^" "^my_string_of_float y ^" "
 let closepath = "Z"
 
 let line ?(attrs=[]) ?id ?cls ?style ?stroke ?stroke_width ?stroke_opacity (x1, y1) (x2, y2) =
-    let attrs = add_attrs ([ "x1", string_of_float x1 ;
-                             "y1", string_of_float y1 ;
-                             "x2", string_of_float x2 ;
-                             "y2", string_of_float y2 ] @ attrs)
+    let attrs = add_attrs ([ "x1", my_string_of_float x1 ;
+                             "y1", my_string_of_float y1 ;
+                             "x2", my_string_of_float x2 ;
+                             "y2", my_string_of_float y2 ] @ attrs)
                           [ "style", style ;
-                            "stroke-opacity", Option.map string_of_float stroke_opacity ;
+                            "stroke-opacity", Option.map my_string_of_float stroke_opacity ;
                             "stroke", stroke ;
-                            "stroke-width", Option.map string_of_float stroke_width ] in
+                            "stroke-width", Option.map my_string_of_float stroke_width ] in
     tag "line" ~attrs ?id ?cls []
 

@@ -1,4 +1,4 @@
-# vim:syntax=make
+# vim:ft=make
 OCAMLC     = ocamlfind ocamlc
 OCAMLOPT   = ocamlfind ocamlopt
 OCAMLLEX   = ocamllex
